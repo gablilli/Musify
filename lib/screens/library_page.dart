@@ -210,20 +210,14 @@ class _LibraryPageState extends State<LibraryPage> {
       builder: (context, snapshot) {
         final years = snapshot.data ?? [];
         final currentYear = DateTime.now().year;
-        final hasStatsCurrentYear = years.contains(currentYear);
-        final hasAnyStats = years.isNotEmpty;
 
-        // Only show if there are stats or it's after first use
-        if (!hasAnyStats && !hasStatsCurrentYear) {
-          return const SizedBox.shrink();
-        }
-
+        // Always show wrapped button - the page handles empty data gracefully
         return PlaylistBar(
           context.l10n!.wrapped,
           onPressed: () {
             if (years.length == 1) {
               NavigationManager.router.go('/library/wrapped/${years.first}');
-            } else if (years.isNotEmpty) {
+            } else if (years.length > 1) {
               _showYearSelectionDialog(years);
             } else {
               NavigationManager.router.go('/library/wrapped/$currentYear');

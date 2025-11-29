@@ -79,6 +79,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
   static const int _maxHistorySize = 50;
   static const int _queueLookahead = 3;
   static const int _maxConcurrentPreloads = 2;
+  static const int _defaultSongDurationSeconds = 180;
   static const Duration _errorRetryDelay = Duration(seconds: 2);
   static const Duration _songTransitionTimeout = Duration(seconds: 30);
   static const Duration _debounceInterval = Duration(milliseconds: 150);
@@ -1381,7 +1382,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
       final artist = song['artist']?.toString();
       final thumbnailUrl =
           song['lowResImage']?.toString() ?? song['highResImage']?.toString();
-      final durationInSeconds = audioPlayer.duration?.inSeconds ?? 180;
+      final durationInSeconds =
+          audioPlayer.duration?.inSeconds ?? _defaultSongDurationSeconds;
 
       if (songId != null && songId.isNotEmpty) {
         unawaited(

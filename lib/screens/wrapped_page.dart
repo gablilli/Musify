@@ -869,7 +869,7 @@ class _ArtistListItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${artist.playCount} plays',
+                  '${artist.playCount} ${context.l10n!.wrappedPlays}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                   ),
