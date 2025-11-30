@@ -294,6 +294,7 @@ Future<void> initialisation() async {
       Hive.openBox('user'),
       Hive.openBox('userNoBackup'),
       Hive.openBox('cache'),
+      Hive.openBox('listeningStats'),
     ]);
 
     audioHandler = await AudioService.init(

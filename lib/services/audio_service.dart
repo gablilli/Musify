@@ -29,6 +29,7 @@ import 'package:musify/API/musify.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/position_data.dart';
 import 'package:musify/services/data_manager.dart';
+import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/mediaitem.dart';
 import 'package:rxdart/rxdart.dart';
@@ -78,6 +79,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
   static const int _maxHistorySize = 50;
   static const int _queueLookahead = 3;
   static const int _maxConcurrentPreloads = 2;
+  static const int _defaultSongDurationSeconds = 180;
   static const Duration _errorRetryDelay = Duration(seconds: 2);
   static const Duration _songTransitionTimeout = Duration(seconds: 30);
   static const Duration _debounceInterval = Duration(milliseconds: 150);
@@ -1060,6 +1062,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
         unawaited(addOrUpdateData('cache', cacheKey, songUrl));
       }
 
+      // Track listening statistics for Wrapped feature
+      _trackSongPlayForStats(song);
+
       _updatePlaybackState();
 
       if (playNextSongAutomatically.value) {
@@ -1367,6 +1372,33 @@ class MusifyAudioHandler extends BaseAudioHandler {
       'playNextSongAutomatically',
       playNextSongAutomatically.value,
     );
+  }
+
+  /// Track song play for Wrapped statistics (on-device only)
+  void _trackSongPlayForStats(Map song) {
+    try {
+      final songId = song['ytid']?.toString();
+      final songTitle = song['title']?.toString() ?? 'Unknown';
+      final artist = song['artist']?.toString();
+      final thumbnailUrl =
+          song['lowResImage']?.toString() ?? song['highResImage']?.toString();
+      final durationInSeconds =
+          audioPlayer.duration?.inSeconds ?? _defaultSongDurationSeconds;
+
+      if (songId != null && songId.isNotEmpty) {
+        unawaited(
+          listeningStatsService.trackSongPlay(
+            songId: songId,
+            songTitle: songTitle,
+            artist: artist,
+            thumbnailUrl: thumbnailUrl,
+            durationInSeconds: durationInSeconds,
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      logger.log('Error tracking song play for stats', e, stackTrace);
+    }
   }
 
   @override

@@ -23,6 +23,7 @@ import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:musify/API/musify.dart';
 import 'package:musify/extensions/l10n.dart';
+import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
@@ -116,11 +117,9 @@ class _LibraryPageState extends State<LibraryPage> {
             onPressed: () =>
                 NavigationManager.router.go('/library/userSongs/offline'),
             cubeIcon: FluentIcons.cellular_off_24_filled,
-            borderRadius: isUserPlaylistsEmpty
-                ? commonCustomBarRadiusLast
-                : BorderRadius.zero,
             showBuildActions: false,
           ),
+          _buildWrappedButton(),
 
           // Display folders
           ValueListenableBuilder<List>(
@@ -202,6 +201,57 @@ class _LibraryPageState extends State<LibraryPage> {
             },
           ),
       ],
+    );
+  }
+
+  Widget _buildWrappedButton() {
+    return FutureBuilder<List<int>>(
+      future: listeningStatsService.getAvailableYears(),
+      builder: (context, snapshot) {
+        final years = snapshot.data ?? [];
+        final currentYear = DateTime.now().year;
+
+        // Always show wrapped button - the page handles empty data gracefully
+        return PlaylistBar(
+          context.l10n!.wrapped,
+          onPressed: () {
+            if (years.length == 1) {
+              NavigationManager.router.go('/library/wrapped/${years.first}');
+            } else if (years.length > 1) {
+              _showYearSelectionDialog(years);
+            } else {
+              NavigationManager.router.go('/library/wrapped/$currentYear');
+            }
+          },
+          cubeIcon: FluentIcons.sparkle_24_filled,
+          borderRadius: commonCustomBarRadiusLast,
+          showBuildActions: false,
+        );
+      },
+    );
+  }
+
+  void _showYearSelectionDialog(List<int> years) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(context.l10n!.wrapped),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: years.map((year) {
+              return ListTile(
+                title: Text(year.toString()),
+                leading: const Icon(FluentIcons.sparkle_24_filled),
+                onTap: () {
+                  Navigator.pop(context);
+                  NavigationManager.router.go('/library/wrapped/$year');
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 
