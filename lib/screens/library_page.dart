@@ -70,8 +70,6 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Widget _buildUserPlaylistsSection(Color primaryColor) {
-    final isUserPlaylistsEmpty =
-        userPlaylists.value.isEmpty && userCustomPlaylists.value.isEmpty;
     return Column(
       children: [
         if (!offlineMode.value) ...[

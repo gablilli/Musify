@@ -99,7 +99,7 @@ class _WrappedPageState extends State<WrappedPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                FluentIcons.music_note_off_24_filled,
+                FluentIcons.music_note_2_24_filled,
                 size: 64,
                 color: Theme.of(
                   context,
