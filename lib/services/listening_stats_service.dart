@@ -24,12 +24,8 @@ import 'package:musify/main.dart';
 
 /// Flag to enable fake data mode for testing the wrapped feature.
 /// Set this to true to test the wrapped UI with mock data.
-/// 
-/// ⚠️ WARNING: This is set to TRUE for testing purposes.
-/// MUST be set to FALSE before merging to main or creating production builds!
-/// 
 /// For production: const bool useWrappedTestData = false;
-const bool useWrappedTestData = true;
+const bool useWrappedTestData = false;
 
 /// Service for tracking listening statistics on-device
 /// All data remains local and is never sent to any server
