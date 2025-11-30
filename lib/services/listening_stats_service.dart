@@ -22,6 +22,11 @@
 import 'package:hive/hive.dart';
 import 'package:musify/main.dart';
 
+/// Flag to enable fake data mode for testing the wrapped feature.
+/// Set this to true to test the wrapped UI with mock data.
+/// WARNING: This should be set to false before production builds.
+const bool useWrappedTestData = true;
+
 /// Service for tracking listening statistics on-device
 /// All data remains local and is never sent to any server
 class ListeningStatsService {
@@ -123,6 +128,11 @@ class ListeningStatsService {
 
   /// Get wrapped stats for a specific year
   Future<WrappedStats?> getWrappedStats(int year) async {
+    // Return fake data for testing if the flag is enabled
+    if (useWrappedTestData) {
+      return _generateFakeWrappedStats(year);
+    }
+
     try {
       final box = await _openBox();
       final yearlyStats = Map<String, dynamic>.from(
@@ -198,6 +208,11 @@ class ListeningStatsService {
 
   /// Check if there are stats available for a specific year
   Future<bool> hasStatsForYear(int year) async {
+    // Return true for test mode
+    if (useWrappedTestData) {
+      return true;
+    }
+
     try {
       final box = await _openBox();
       final yearlyStats = box.get('yearlyStats_$year');
@@ -211,6 +226,11 @@ class ListeningStatsService {
 
   /// Get available years with stats
   Future<List<int>> getAvailableYears() async {
+    // Return current year for test mode
+    if (useWrappedTestData) {
+      return [DateTime.now().year];
+    }
+
     try {
       final box = await _openBox();
       final years = <int>[];
@@ -232,6 +252,149 @@ class ListeningStatsService {
     } catch (e) {
       return [];
     }
+  }
+
+  /// Generate fake wrapped stats for testing purposes
+  WrappedStats _generateFakeWrappedStats(int year) {
+    // Fake top songs with realistic data
+    final fakeSongs = [
+      SongStat(
+        songId: 'fake_song_1',
+        title: 'Bohemian Rhapsody',
+        artist: 'Queen',
+        thumbnailUrl: 'https://i.ytimg.com/vi/fJ9rUzIMcZQ/hqdefault.jpg',
+        playCount: 156,
+      ),
+      SongStat(
+        songId: 'fake_song_2',
+        title: 'Blinding Lights',
+        artist: 'The Weeknd',
+        thumbnailUrl: 'https://i.ytimg.com/vi/4NRXx6U8ABQ/hqdefault.jpg',
+        playCount: 134,
+      ),
+      SongStat(
+        songId: 'fake_song_3',
+        title: 'Shape of You',
+        artist: 'Ed Sheeran',
+        thumbnailUrl: 'https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg',
+        playCount: 112,
+      ),
+      SongStat(
+        songId: 'fake_song_4',
+        title: 'Lose Yourself',
+        artist: 'Eminem',
+        thumbnailUrl: 'https://i.ytimg.com/vi/_Yhyp-_hX2s/hqdefault.jpg',
+        playCount: 98,
+      ),
+      SongStat(
+        songId: 'fake_song_5',
+        title: 'Rolling in the Deep',
+        artist: 'Adele',
+        thumbnailUrl: 'https://i.ytimg.com/vi/rYEDA3JcQqw/hqdefault.jpg',
+        playCount: 87,
+      ),
+      SongStat(
+        songId: 'fake_song_6',
+        title: 'Uptown Funk',
+        artist: 'Bruno Mars',
+        thumbnailUrl: 'https://i.ytimg.com/vi/OPf0YbXqDm0/hqdefault.jpg',
+        playCount: 76,
+      ),
+      SongStat(
+        songId: 'fake_song_7',
+        title: 'Despacito',
+        artist: 'Luis Fonsi',
+        thumbnailUrl: 'https://i.ytimg.com/vi/kJQP7kiw5Fk/hqdefault.jpg',
+        playCount: 65,
+      ),
+      SongStat(
+        songId: 'fake_song_8',
+        title: 'Smells Like Teen Spirit',
+        artist: 'Nirvana',
+        thumbnailUrl: 'https://i.ytimg.com/vi/hTWKbfoikeg/hqdefault.jpg',
+        playCount: 54,
+      ),
+      SongStat(
+        songId: 'fake_song_9',
+        title: 'Billie Jean',
+        artist: 'Michael Jackson',
+        thumbnailUrl: 'https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg',
+        playCount: 43,
+      ),
+      SongStat(
+        songId: 'fake_song_10',
+        title: 'Hotel California',
+        artist: 'Eagles',
+        thumbnailUrl: 'https://i.ytimg.com/vi/09839DpTctU/hqdefault.jpg',
+        playCount: 38,
+      ),
+    ];
+
+    // Fake top artists
+    final fakeArtists = [
+      ArtistStat(
+        artist: 'Queen',
+        playCount: 234,
+        totalSeconds: 42120, // ~702 minutes
+      ),
+      ArtistStat(
+        artist: 'The Weeknd',
+        playCount: 189,
+        totalSeconds: 34020, // ~567 minutes
+      ),
+      ArtistStat(
+        artist: 'Ed Sheeran',
+        playCount: 156,
+        totalSeconds: 28080, // ~468 minutes
+      ),
+      ArtistStat(
+        artist: 'Eminem',
+        playCount: 143,
+        totalSeconds: 25740, // ~429 minutes
+      ),
+      ArtistStat(
+        artist: 'Adele',
+        playCount: 121,
+        totalSeconds: 21780, // ~363 minutes
+      ),
+      ArtistStat(
+        artist: 'Bruno Mars',
+        playCount: 98,
+        totalSeconds: 17640, // ~294 minutes
+      ),
+      ArtistStat(
+        artist: 'Michael Jackson',
+        playCount: 87,
+        totalSeconds: 15660, // ~261 minutes
+      ),
+      ArtistStat(
+        artist: 'Coldplay',
+        playCount: 76,
+        totalSeconds: 13680, // ~228 minutes
+      ),
+      ArtistStat(
+        artist: 'Taylor Swift',
+        playCount: 65,
+        totalSeconds: 11700, // ~195 minutes
+      ),
+      ArtistStat(
+        artist: 'Daft Punk',
+        playCount: 54,
+        totalSeconds: 9720, // ~162 minutes
+      ),
+    ];
+
+    return WrappedStats(
+      year: year,
+      totalListeningMinutes: 8745, // ~145 hours
+      totalSongsPlayed: 2847,
+      topSongs: fakeSongs,
+      topArtists: fakeArtists,
+      topMonth: 7, // July
+      topMonthMinutes: 1234,
+      uniqueSongsPlayed: 456,
+      uniqueArtistsPlayed: 123,
+    );
   }
 
   Future<Box> _openBox() async {
