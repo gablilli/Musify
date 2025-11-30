@@ -19,7 +19,6 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:musify/main.dart';
 
