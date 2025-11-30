@@ -25,6 +25,8 @@ import 'package:musify/API/musify.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/screens/playlist_page.dart';
+import 'package:musify/services/listening_stats_service.dart';
+import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/common_variables.dart';
 import 'package:musify/utilities/utils.dart';
@@ -69,6 +71,7 @@ class _HomePageState extends State<HomePage> {
                 );
               },
             ),
+            _buildWrappedSection(),
             _buildSuggestedPlaylists(playlistHeight),
             _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
             _buildRecommendedSongsSection(playlistHeight),
@@ -268,6 +271,115 @@ class _HomePageState extends State<HomePage> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildWrappedSection() {
+    return FutureBuilder<List<int>>(
+      future: listeningStatsService.getAvailableYears(),
+      builder: (context, snapshot) {
+        final years = snapshot.data ?? [];
+        final currentYear = DateTime.now().year;
+        final colorScheme = Theme.of(context).colorScheme;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: GestureDetector(
+            onTap: () {
+              if (years.length == 1) {
+                NavigationManager.router.go('/library/wrapped/${years.first}');
+              } else if (years.length > 1) {
+                _showYearSelectionDialog(years);
+              } else {
+                NavigationManager.router.go('/library/wrapped/$currentYear');
+              }
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    colorScheme.primaryContainer,
+                    colorScheme.secondaryContainer,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      FluentIcons.sparkle_24_filled,
+                      color: colorScheme.primary,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${context.l10n!.wrapped} $currentYear',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.onSurface,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          context.l10n!.wrappedSubtitle,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    FluentIcons.chevron_right_24_filled,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showYearSelectionDialog(List<int> years) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(context.l10n!.wrapped),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: years.map((year) {
+              return ListTile(
+                title: Text(year.toString()),
+                leading: const Icon(FluentIcons.sparkle_24_filled),
+                onTap: () {
+                  Navigator.pop(context);
+                  NavigationManager.router.go('/library/wrapped/$year');
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 }
