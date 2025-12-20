@@ -195,21 +195,17 @@ Future<List> _getRecommendationsFromMixedSources() async {
   final playlistSongs = <Map>[];
 
   // Add liked songs (these are explicitly preferred by user)
-  playlistSongs.addAll(
-    userLikedSongsList.map((song) => Map<String, dynamic>.from(song)),
-  );
+  playlistSongs.addAll(userLikedSongsList);
 
   // Add recently played songs
-  playlistSongs.addAll(
-    userRecentlyPlayed.map((song) => Map<String, dynamic>.from(song)),
-  );
+  playlistSongs.addAll(userRecentlyPlayed);
 
   // Add songs from user's custom playlists (user-curated content)
   if (userCustomPlaylists.value.isNotEmpty) {
     for (final userPlaylist in userCustomPlaylists.value) {
       if (userPlaylist['list'] is List) {
         final _list = List<Map>.from(userPlaylist['list'])..shuffle();
-        playlistSongs.addAll(_list.take(5).map((s) => Map<String, dynamic>.from(s)));
+        playlistSongs.addAll(_list.take(5));
       }
     }
   }
