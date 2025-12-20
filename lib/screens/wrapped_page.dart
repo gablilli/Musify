@@ -345,12 +345,13 @@ class _WrappedPageState extends State<WrappedPage> {
       itemCount: songs.length,
       itemBuilder: (context, index) {
         final song = songs[index];
+        final playCount = song['playCount'] ?? 0;
         return SongBar(
           song,
           true,
           showMusicDuration: true,
           trailing: Text(
-            '${song['playCount']} plays',
+            context.l10n!.plays(playCount),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.primary,
             ),
@@ -410,7 +411,7 @@ class _WrappedPageState extends State<WrappedPage> {
                 ),
               ),
               Text(
-                '$playCount plays',
+                context.l10n!.plays(playCount),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: colorScheme.primary,
                 ),
