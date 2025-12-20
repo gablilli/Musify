@@ -86,11 +86,27 @@ final _clients = [customAndroidVr, customAndroidSdkless];
 
 Future<List> fetchSongsList(String searchQuery) async {
   try {
+    // Check cache first for faster results
+    final cacheKey = 'search_songs_${searchQuery.toLowerCase().trim()}';
+    final cachedResults = await getData(
+      'cache',
+      cacheKey,
+      cachingDuration: const Duration(hours: 2),
+    );
+    if (cachedResults != null && cachedResults is List && cachedResults.isNotEmpty) {
+      return cachedResults;
+    }
+
     // If not in cache, perform the search
     final List<Video> searchResults = await _yt.search.search(searchQuery);
     final songsList = searchResults
         .map((video) => returnSongLayout(0, video))
         .toList();
+
+    // Cache the results for faster future access
+    if (songsList.isNotEmpty) {
+      unawaited(addOrUpdateData('cache', cacheKey, songsList));
+    }
 
     return songsList;
   } catch (e, stackTrace) {
@@ -113,13 +129,49 @@ Future<List> getRecommendedSongs() async {
 }
 
 Future<List> _getRecommendationsFromRecentlyPlayed() async {
-  final recent = userRecentlyPlayed.take(3).toList();
+  // Extract unique artists from recently played to understand user preferences
+  final userArtists = <String>{};
+  for (final song in userRecentlyPlayed.take(10)) {
+    final artist = song['artist']?.toString().toLowerCase().trim();
+    if (artist != null && artist.isNotEmpty) {
+      userArtists.add(artist);
+    }
+  }
+
+  // Also include liked songs artists for better profile
+  for (final song in userLikedSongsList.take(10)) {
+    final artist = song['artist']?.toString().toLowerCase().trim();
+    if (artist != null && artist.isNotEmpty) {
+      userArtists.add(artist);
+    }
+  }
+
+  final recent = userRecentlyPlayed.take(5).toList();
 
   final futures = recent.map((songData) async {
     try {
       final song = await _yt.videos.get(songData['ytid']);
       final relatedSongs = await _yt.videos.getRelatedVideos(song) ?? [];
-      return relatedSongs.take(3).map((s) => returnSongLayout(0, s)).toList();
+
+      // Filter related songs to prefer those from similar artists or
+      // exclude obvious mismatches by checking artist similarity
+      final filteredSongs = relatedSongs.where((relatedSong) {
+        final relatedTitle = relatedSong.title.toLowerCase();
+        // Check if any known artist appears in the related song
+        return userArtists.any(
+              (artist) => relatedTitle.contains(artist),
+            ) ||
+            // If no artist match, at least take some related songs
+            // (YouTube's related algorithm should be reasonably good)
+            relatedSongs.indexOf(relatedSong) < 2;
+      }).toList();
+
+      // If filtering removed all songs, take the top 2 related songs anyway
+      final songsToUse = filteredSongs.isNotEmpty
+          ? filteredSongs.take(3)
+          : relatedSongs.take(2);
+
+      return songsToUse.map((s) => returnSongLayout(0, s)).toList();
     } catch (e, stackTrace) {
       logger.log(
         'Error getting related videos for ${songData['ytid']}',
@@ -138,18 +190,42 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
 }
 
 Future<List> _getRecommendationsFromMixedSources() async {
-  final playlistSongs = [...userLikedSongsList, ...userRecentlyPlayed];
+  // Start with user's liked songs and recently played - these are the best
+  // indicators of user preference
+  final playlistSongs = <Map>[];
 
-  if (globalSongs.isEmpty) {
-    const playlistId = 'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx';
-    globalSongs = await getSongsFromPlaylist(playlistId);
-  }
-  playlistSongs.addAll(globalSongs.take(10));
+  // Add liked songs (these are explicitly preferred by user)
+  playlistSongs.addAll(
+    userLikedSongsList.map((song) => Map<String, dynamic>.from(song)),
+  );
 
+  // Add recently played songs
+  playlistSongs.addAll(
+    userRecentlyPlayed.map((song) => Map<String, dynamic>.from(song)),
+  );
+
+  // Add songs from user's custom playlists (user-curated content)
   if (userCustomPlaylists.value.isNotEmpty) {
     for (final userPlaylist in userCustomPlaylists.value) {
-      final _list = (userPlaylist['list'] as List)..shuffle();
-      playlistSongs.addAll(_list.take(5));
+      if (userPlaylist['list'] is List) {
+        final _list = List<Map>.from(userPlaylist['list'])..shuffle();
+        playlistSongs.addAll(_list.take(5).map((s) => Map<String, dynamic>.from(s)));
+      }
+    }
+  }
+
+  // If user has very few songs (new user), try to get related songs
+  // from what they have listened to
+  if (playlistSongs.length < 5 && userRecentlyPlayed.isNotEmpty) {
+    try {
+      final baseSong = userRecentlyPlayed.first;
+      final song = await _yt.videos.get(baseSong['ytid']);
+      final relatedSongs = await _yt.videos.getRelatedVideos(song) ?? [];
+      playlistSongs.addAll(
+        relatedSongs.take(10).map((s) => returnSongLayout(0, s)),
+      );
+    } catch (e, stackTrace) {
+      logger.log('Error getting related videos for new user', e, stackTrace);
     }
   }
 
@@ -679,61 +755,83 @@ Future<List> getPlaylists({
 
     final searchTerm = type == 'album' ? '$query album' : query;
 
-    late final Iterable searchResultsIterable;
-    try {
-      searchResultsIterable = await _yt.search.searchContent(
-        searchTerm,
-        filter: TypeFilters.playlist,
-      );
-    } catch (e, st) {
-      logger.log('Error while searching online songs:$e', e, st);
-      // Attempt proxy fallback if enabled
-      if (useProxy.value) {
-        final proxyYt = await ProxyManager().getYoutubeExplodeClient();
-        if (proxyYt != null) {
-          try {
-            searchResultsIterable = await proxyYt.search.searchContent(
-              searchTerm,
-              filter: TypeFilters.playlist,
-            );
-          } catch (e2, st2) {
-            logger.log('Proxy search failed:$e2', e2, st2);
-            searchResultsIterable = <dynamic>[];
-          } finally {
+    // Check cache for playlist search results
+    final cacheKey = 'search_playlists_${searchTerm.toLowerCase().trim()}_$type';
+    final cachedResults = await getData(
+      'cache',
+      cacheKey,
+      cachingDuration: const Duration(hours: 2),
+    );
+
+    List<Map<String, dynamic>> newPlaylists = [];
+
+    if (cachedResults != null && cachedResults is List && cachedResults.isNotEmpty) {
+      // Use cached results
+      newPlaylists = cachedResults.map((p) => Map<String, dynamic>.from(p)).toList();
+    } else {
+      // Perform online search
+      late final Iterable searchResultsIterable;
+      try {
+        searchResultsIterable = await _yt.search.searchContent(
+          searchTerm,
+          filter: TypeFilters.playlist,
+        );
+      } catch (e, st) {
+        logger.log('Error while searching online songs:$e', e, st);
+        // Attempt proxy fallback if enabled
+        if (useProxy.value) {
+          final proxyYt = await ProxyManager().getYoutubeExplodeClient();
+          if (proxyYt != null) {
             try {
-              proxyYt.close();
-            } catch (_) {}
+              searchResultsIterable = await proxyYt.search.searchContent(
+                searchTerm,
+                filter: TypeFilters.playlist,
+              );
+            } catch (e2, st2) {
+              logger.log('Proxy search failed:$e2', e2, st2);
+              searchResultsIterable = <dynamic>[];
+            } finally {
+              try {
+                proxyYt.close();
+              } catch (_) {}
+            }
+          } else {
+            searchResultsIterable = <dynamic>[];
           }
         } else {
           searchResultsIterable = <dynamic>[];
         }
-      } else {
-        searchResultsIterable = <dynamic>[];
+      }
+
+      // Avoid duplicate online playlists.
+      final existingYtIds = onlinePlaylists
+          .map((p) => p['ytid'] as String)
+          .toSet();
+
+      newPlaylists = searchResultsIterable
+          .whereType<SearchPlaylist>()
+          .map((playlist) {
+            final playlistMap = {
+              'ytid': playlist.id.toString(),
+              'title': playlist.title,
+              'source': 'youtube',
+              'list': [],
+            };
+            if (!existingYtIds.contains(playlistMap['ytid'])) {
+              existingYtIds.add(playlistMap['ytid'].toString());
+              return playlistMap;
+            }
+            return null;
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+      // Cache the results
+      if (newPlaylists.isNotEmpty) {
+        unawaited(addOrUpdateData('cache', cacheKey, newPlaylists));
       }
     }
 
-    // Avoid duplicate online playlists.
-    final existingYtIds = onlinePlaylists
-        .map((p) => p['ytid'] as String)
-        .toSet();
-
-    final newPlaylists = searchResultsIterable
-        .whereType<SearchPlaylist>()
-        .map((playlist) {
-          final playlistMap = {
-            'ytid': playlist.id.toString(),
-            'title': playlist.title,
-            'source': 'youtube',
-            'list': [],
-          };
-          if (!existingYtIds.contains(playlistMap['ytid'])) {
-            existingYtIds.add(playlistMap['ytid'].toString());
-            return playlistMap;
-          }
-          return null;
-        })
-        .whereType<Map<String, dynamic>>()
-        .toList();
     onlinePlaylists.addAll(newPlaylists);
 
     // Merge online playlists that match the query.
@@ -795,9 +893,24 @@ Future<List<String>> getSearchSuggestions(String query) async {
   //   logger.log('Error in getSearchSuggestions:$e\n$stackTrace');
   // }
 
-  // Built-in implementation:
+  // Built-in implementation with caching for faster suggestions:
+  final cacheKey = 'search_suggestions_${query.toLowerCase().trim()}';
+  final cachedSuggestions = await getData(
+    'cache',
+    cacheKey,
+    cachingDuration: const Duration(hours: 4),
+  );
+
+  if (cachedSuggestions != null && cachedSuggestions is List && cachedSuggestions.isNotEmpty) {
+    return cachedSuggestions.cast<String>();
+  }
 
   final suggestions = await _yt.search.getQuerySuggestions(query);
+
+  // Cache the suggestions
+  if (suggestions.isNotEmpty) {
+    unawaited(addOrUpdateData('cache', cacheKey, suggestions));
+  }
 
   return suggestions;
 }
@@ -846,11 +959,55 @@ Future<void> getSimilarSong(String songYtId) async {
     final song = await _yt.videos.get(songYtId);
     final relatedSongs = await _yt.videos.getRelatedVideos(song) ?? [];
 
-    if (relatedSongs.isNotEmpty) {
-      nextRecommendedSong = returnSongLayout(0, relatedSongs[0]);
-    } else {
+    if (relatedSongs.isEmpty) {
       logger.log('No related songs found for $songYtId', null, null);
+      return;
     }
+
+    // Extract the current song's artist to prefer similar artists
+    final currentArtist = song.title.split('-')[0].toLowerCase().trim();
+
+    // Build a set of user's preferred artists from listening history
+    final userArtists = <String>{};
+    for (final s in userRecentlyPlayed.take(10)) {
+      final artist = s['artist']?.toString().toLowerCase().trim();
+      if (artist != null && artist.isNotEmpty) {
+        userArtists.add(artist);
+      }
+    }
+    for (final s in userLikedSongsList.take(10)) {
+      final artist = s['artist']?.toString().toLowerCase().trim();
+      if (artist != null && artist.isNotEmpty) {
+        userArtists.add(artist);
+      }
+    }
+    userArtists.add(currentArtist);
+
+    // Score and sort related songs by relevance
+    final scoredSongs = relatedSongs.map((relatedSong) {
+      final title = relatedSong.title.toLowerCase();
+      var score = 0;
+
+      // Prefer songs from the same artist
+      if (title.contains(currentArtist)) {
+        score += 10;
+      }
+
+      // Prefer songs from user's known artists
+      for (final artist in userArtists) {
+        if (title.contains(artist)) {
+          score += 5;
+          break;
+        }
+      }
+
+      return {'song': relatedSong, 'score': score};
+    }).toList()
+      ..sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+
+    // Pick the highest-scoring song
+    final bestMatch = scoredSongs.first['song'] as dynamic;
+    nextRecommendedSong = returnSongLayout(0, bestMatch);
   } catch (e, stackTrace) {
     logger.log('Error while fetching next similar song:', e, stackTrace);
   }
