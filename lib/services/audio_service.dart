@@ -30,6 +30,7 @@ import 'package:musify/API/musify.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/position_data.dart';
 import 'package:musify/services/data_manager.dart';
+import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/mediaitem.dart';
 import 'package:rxdart/rxdart.dart';
@@ -1072,6 +1073,16 @@ class MusifyAudioHandler extends BaseAudioHandler {
       }
 
       await audioPlayer.play();
+
+      // Record play for Musify Wrapped statistics
+      unawaited(
+        ListeningStatsService.instance.recordPlay(
+          ytid: song['ytid']?.toString() ?? '',
+          title: song['title']?.toString() ?? '',
+          artist: song['artist']?.toString() ?? '',
+          durationSeconds: song['duration'] as int?,
+        ),
+      );
 
       if (!isOffline) {
         final cacheKey =

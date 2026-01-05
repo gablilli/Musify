@@ -172,6 +172,39 @@
   "useProxy": "Use proxy",
   "useProxyDescription": "Use a proxy server to potentially solve streaming problems.",
   "userPlaylists": "User playlists",
+  "wrapped": "Wrapped",
+  "wrappedYear": "{year} Wrapped",
+  "@wrappedYear": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "wrappedDescription": "Your year in music",
+  "totalListeningTime": "Total listening time",
+  "topSongs": "Top songs",
+  "topArtists": "Top artists",
+  "songsPlayed": "Songs played",
+  "uniqueSongs": "Unique songs",
+  "uniqueArtists": "Unique artists",
+  "noWrappedData": "Not enough listening data yet. Keep listening to see your Wrapped!",
+  "minutesListened": "{minutes} minutes",
+  "@minutesListened": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "plays": "{count} plays",
+  "@plays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "yes": "Yes",
   "youtubePlaylistLinkOrId": "YouTube playlist link or ID"
 }
